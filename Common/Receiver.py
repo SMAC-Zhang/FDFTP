@@ -101,11 +101,12 @@ class Receiver(threading.Thread):
                     self.rwnd -= 1
                 if recv_pack.final_flag == True:
                     end_seq = recv_pack.seq
-            # send ack 
-            data = ''.encode('utf-8')
-            checksum = generate_checksum(struct.pack('iii?1024s', *(0, recv_pack.seq, self.rwnd, False, data)))
-            send_pack = DataStruct(0, recv_pack.seq, self.rwnd, False, data, checksum)
-            self.send(send_pack.pack())
+            if idx < self.rwnd:
+                # send ack 
+                data = ''.encode('utf-8')
+                checksum = generate_checksum(struct.pack('iii?1024s', *(0, recv_pack.seq, self.rwnd, False, data)))
+                send_pack = DataStruct(0, recv_pack.seq, self.rwnd, False, data, checksum)
+                self.send(send_pack.pack())
 
             # window slides
             while True:

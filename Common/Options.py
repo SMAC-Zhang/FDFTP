@@ -18,7 +18,7 @@ FILE_SIZE = 1024
 # for congestion avoidance
 CWND_THRESHOLD = 1024
 CWND_LOW_LIMIT = 16
-RWND = 1024
+RWND = 2048
 ESTIMATED_RTT = 0.2
 
 # for RTT computation
@@ -33,5 +33,5 @@ SERVER_IP = socket.gethostbyname(socket.gethostname())
 SERVER_PORT = 45678
 
 # for multiThread
-DEFAULT_NUM_THREADS = 4
+DEFAULT_NUM_THREADS = 8
 MAX_NUM_THREADS = 16
