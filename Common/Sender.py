@@ -44,7 +44,11 @@ class Sender(threading.Thread):
         if self.recv_ready() is False:
             print('Failed connection')
             return
-        self.recv_ack()
+        try:
+            self.send_file()
+        except TimeoutError:
+            print('recv ack timeout!!!')
+            return
 
     def send(self, data):
         self.task.sendto(self.s, data, self.recv_addr)
@@ -84,15 +88,20 @@ class Sender(threading.Thread):
                 return True
 
     def send_file(self):
+        self.end_flag = False
+        fwnd = 0
         while True:
             self.lock.acquire()
-            while len(self.window) < self.cwnd:
+            cnt = max(0, int(self.cwnd - fwnd))
+            while cnt > 0 and self.end_flag is False:
+                cnt -= 1
+                fwnd += 1
                 if self.file_buf.qsize() > 1:
                     data = self.file_buf.get()
                     checksum = generate_checksum(struct.pack('iii?1024s', *(self.seq, 0, len(data), False, data)))
                     send_pack = DataStruct(self.seq, 0, len(data), False, data, checksum)
                     self.send(send_pack.pack())
-                    timer = threading.Timer(2 * self.RTT, self.timeout_handler, (self.seq,))
+                    timer = threading.Timer(1.5 * self.RTT, self.timeout_handler, (self.seq,))
                     self.window.append([send_pack, timer, False, time.time()])
                     self.seq += 1
                     timer.start()
@@ -101,25 +110,20 @@ class Sender(threading.Thread):
                     checksum = generate_checksum(struct.pack('iii?1024s', *(self.seq, 0, len(data), True, data)))
                     send_pack = DataStruct(self.seq, 0, len(data), True, data, checksum)
                     self.send(send_pack.pack())
-                    timer = threading.Timer(2 * self.RTT, self.timeout_handler, (self.seq,))
+                    timer = threading.Timer(1.5 * self.RTT, self.timeout_handler, (self.seq,))
                     self.window.append([send_pack, timer, False, time.time()])
                     self.seq += 1
                     self.end_flag = True
                     timer.start()
-                    self.lock.release()
-                    return
+                    break
             self.lock.release()
-
-    def recv_ack(self):
-        self.end_flag = False
-        send_thread = threading.Thread(target = self.send_file)
-        send_thread.start()
-
-        while True:
+            
+            # recv ack
             try:
                 data = self.recv()
             except TimeoutError:
                 raise TimeoutError
+            
             # check
             recv_pack: DataStruct = DataStruct.unpack(data)
             isok: bool = check_checksum(struct.pack('iii?1024s', *(recv_pack.seq, recv_pack.ack, recv_pack.length, recv_pack.final_flag, recv_pack.data)), recv_pack.checksum)
@@ -134,6 +138,7 @@ class Sender(threading.Thread):
                 idx = ack - self.send_base
                 if self.window[idx][2] != True:
                     # window increase
+                    fwnd -= 1
                     if self.cwnd < self.ssthresh:
                         self.cwnd += 1
                     else:
@@ -170,7 +175,7 @@ class Sender(threading.Thread):
         if idx < 0:
             self.lock.release()
             return
-        timer = threading.Timer(2 * self.RTT, self.timeout_handler, (seq,))
+        timer = threading.Timer(1.5 * self.RTT, self.timeout_handler, (seq,))
         self.send(self.window[idx][0].pack())
         self.window[idx][1] = timer
         self.window[idx][2] = False

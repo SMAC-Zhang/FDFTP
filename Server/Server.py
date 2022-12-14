@@ -78,7 +78,7 @@ class ServerThread(threading.Thread):
         try:
             data = myserver.recv_from_buffer(self.client_addr, timeout)
             return data
-        except TimeoutError:
+        except Exception:
             raise TimeoutError
 
     def send(self, data):
@@ -105,6 +105,10 @@ class ServerThread(threading.Thread):
                 return
         except TimeoutError:
             print('Time out!')
+            self.reset()
+            return
+        except Exception as e:
+            print(e)
             self.reset()
             return
         
@@ -255,7 +259,7 @@ class ServerThread(threading.Thread):
 
 if __name__ == '__main__':
     global myserver
-    myserver = Server((socket.gethostbyname(socket.gethostname()), SERVER_PORT))
+    myserver = Server((SERVER_IP, SERVER_PORT))
     try:
         myserver.run()
     except KeyboardInterrupt:

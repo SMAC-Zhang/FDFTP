@@ -6,8 +6,8 @@ import socket
 BUF_SIZE = 1024 + 24
 
 # socket buffer size
-SEND_BUF_SIZE = 1024 * 64 # 64Bytes
-RECV_BUF_SIZE = 1024 * 64 # 64Bytes
+SEND_BUF_SIZE = 1024 * 1024 # 1MBytes
+RECV_BUF_SIZE = 1024 * 1024 # 1MBytes
 
 # for socket time out
 TIME_OUT = 5
@@ -16,19 +16,22 @@ TIME_OUT = 5
 FILE_SIZE = 1024
 
 # for congestion avoidance
-CWND_THRESHOLD = 64
-CWND_LOW_LIMIT = 8
-RWND = 128
+CWND_THRESHOLD = 1024
+CWND_LOW_LIMIT = 16
+RWND = 1024
 ESTIMATED_RTT = 0.2
 
 # for RTT computation
 ALPHA = 0.125
 
 # IP and PORT
+# you should change them depends on your environment
+# e.g. CLIENT_IP = '127.0.0.1'
+#      SERVER_IP = '127.0.0.1'
+CLIENT_IP = socket.gethostbyname(socket.gethostname())
 SERVER_IP = socket.gethostbyname(socket.gethostname())
 SERVER_PORT = 45678
-CLIENT_PORT = 12345
 
 # for multiThread
-DEFAULT_NUM_THREADS = 2
-MAX_NUM_THREADS = 8
+DEFAULT_NUM_THREADS = 4
+MAX_NUM_THREADS = 16

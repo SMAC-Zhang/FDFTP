@@ -71,10 +71,11 @@ class Receiver(threading.Thread):
         for i in range(self.rwnd):
             self.window.append(None)
         end_seq = -999
+        out = False
 
         while True:
             try:
-                data = self.recv()
+                data = self.recv(timeout = 2)
             except Exception:
                 if end_seq + 1 == self.recv_base:
                     break
@@ -120,9 +121,10 @@ class Receiver(threading.Thread):
                     break
             
             if end_seq + 1 == self.recv_base:
-                if self.is_server is False:
-                    id = self.file_name[-1]
+                if self.is_server is False and out is False:
+                    id = self.file_name.split('_')[-1]
                     print('thread ' + id + ' download finished!')
+                    out = True
                 self.file.close()
 
     def timeout_handler(self):

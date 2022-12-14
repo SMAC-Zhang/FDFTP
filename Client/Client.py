@@ -2,6 +2,7 @@ import socket
 import sys
 import threading
 import os
+import time
 from queue import Queue
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
@@ -114,12 +115,11 @@ class Client():
         if self.inst == 'download':
             for i in range(self.num_thread):
                 ss = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                port = CLIENT_PORT + i + 1
-                ss.bind((socket.gethostbyname(socket.gethostname()), port))
+                ss.bind((CLIENT_IP, 0))
                 ss.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, RECV_BUF_SIZE)
                 ss.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, RECV_BUF_SIZE)
                 self.thread_socket.append(ss)
-                self.socket_port.append(port)
+                self.socket_port.append(ss.getsockname()[1])
         else:
             #prepare file buffer
             f = open(self.file_name, 'rb')
@@ -171,7 +171,7 @@ class Client():
     
     def download(self):
         for i in range(self.num_thread):
-            thread = Receiver(self.server_addr, self.file_name + str(i), self.thread_socket[i], None, False)
+            thread = Receiver(self.server_addr, self.file_name + '_' + str(i), self.thread_socket[i], None, False)
             self.thread_array.append(thread)
         
         for i in range(self.num_thread):
@@ -199,6 +199,7 @@ class Client():
         upload_thread.join()
         self.task.finish()
         print(self.inst + ' ' + self.file_name + ' ' + 'successfully!')
+        time.sleep(2)
         # send md5 to check
         md5 = get_md5(self.file_name)
         md5 = md5.encode('utf-8')
@@ -209,18 +210,18 @@ class Client():
     def make_file(self):
         print('download finished, checking file...')
 
-        file = open(self.file_name + str(0), 'ab')
+        file = open(self.file_name + '_' + str(0), 'ab')
         for i in range(1, self.num_thread):
-            rfile = open(self.file_name + str(i), 'rb')
+            rfile = open(self.file_name + '_' + str(i), 'rb')
             data = rfile.read()
             file.write(data)
             rfile.close()
-            os.remove(self.file_name + str(i))
+            os.remove(self.file_name + '_' + str(i))
         file.close()
 
         if os.path.exists(self.file_name) is True:
             os.remove(self.file_name)
-        os.rename(self.file_name + str(0), self.file_name)     
+        os.rename(self.file_name + '_' + str(0), self.file_name)     
 
     def check_md5(self) -> bool:
         # recv md5
@@ -267,7 +268,7 @@ class Client():
         self.file_buf = Queue()
 
 if __name__ == "__main__":
-    myclient = Client((socket.gethostbyname(socket.gethostname()), CLIENT_PORT), (SERVER_IP, SERVER_PORT))
+    myclient = Client((CLIENT_IP, 0), (SERVER_IP, SERVER_PORT))
     try:
         myclient.run()
     except KeyboardInterrupt:

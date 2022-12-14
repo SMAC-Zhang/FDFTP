@@ -21,7 +21,7 @@ class Task():
     def finish(self):
         time_consume = time.time() - self.start_time
         goodput = self.file_size / (time_consume * 1000)
-        print("goodput:" + str(goodput) + "Mbps")
+        print("goodput:" + str(goodput) + "KB/s")
         rate = self.file_size / self.byte_count
         print("score:" + str(goodput * rate))
         print('Packet loss rate: ' + str((self.pack_count / self.pack_size - 1) * 100) + "%")
