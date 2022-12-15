@@ -22,7 +22,6 @@ class Sender(threading.Thread):
         
         # for congestion avoid 
         self.cwnd = 1
-        self.rwnd = RWND
         self.RTT = ESTIMATED_RTT
         self.firstRTT = True
         self.ssthresh = CWND_THRESHOLD
@@ -76,15 +75,17 @@ class Sender(threading.Thread):
             except TimeoutError:
                 print('recv_ready timeout')
                 return False
+            if len(data) != ACK_LEN:
+                continue
             # check
-            recv_pack: DataStruct = DataStruct.unpack(data)
-            isok: bool = check_checksum(struct.pack('iii?1024s', *(recv_pack.seq, recv_pack.ack, recv_pack.length, recv_pack.final_flag, recv_pack.data)), recv_pack.checksum)
+            recv_pack: AckStruct = AckStruct.unpack(data)
+            isok: bool = check_checksum(struct.pack('ii', *(recv_pack.port, recv_pack.ack)), recv_pack.checksum)
             if isok is False:
                 print("checksum error!")
                 continue
-            data = recv_pack.data.strip(b'\x00')
-            data = data.decode('utf-8')
-            if data == 'Ready':
+            if recv_pack.ack == -1:
+                if self.is_server:
+                    self.recv_addr = (self.recv_addr[0], recv_pack.port)
                 return True
 
     def send_file(self):
@@ -117,23 +118,24 @@ class Sender(threading.Thread):
                     timer.start()
                     break
             self.lock.release()
-            
+
             # recv ack
-            try:
-                data = self.recv()
-            except TimeoutError:
-                raise TimeoutError
-            
+            while True:
+                try:
+                    data = self.recv()
+                except TimeoutError:
+                    raise TimeoutError
+                if len(data) == ACK_LEN:
+                    break
             # check
-            recv_pack: DataStruct = DataStruct.unpack(data)
-            isok: bool = check_checksum(struct.pack('iii?1024s', *(recv_pack.seq, recv_pack.ack, recv_pack.length, recv_pack.final_flag, recv_pack.data)), recv_pack.checksum)
+            recv_pack: AckStruct = AckStruct.unpack(data)
+            isok: bool = check_checksum(struct.pack('ii', *(recv_pack.port, recv_pack.ack)), recv_pack.checksum)
             if isok is False:
                 print("checksum error!")
                 continue
             
             ack = recv_pack.ack
             self.lock.acquire()
-            self.rwnd = recv_pack.length
             if self.send_base <= ack and ack < self.seq:
                 idx = ack - self.send_base
                 if self.window[idx][2] != True:

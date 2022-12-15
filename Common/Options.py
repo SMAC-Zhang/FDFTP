@@ -35,3 +35,7 @@ SERVER_PORT = 45678
 # for multiThread
 DEFAULT_NUM_THREADS = 8
 MAX_NUM_THREADS = 16
+
+# for parse package
+ACK_LEN = 16
+DATA_LEN = 1048

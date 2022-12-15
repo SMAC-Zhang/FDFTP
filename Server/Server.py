@@ -32,6 +32,16 @@ class Server():
 
     def add_to_buffer(self, data, client_addr):
         # add data received from socket to the buffer
+        if len(data) == ACK_LEN:
+            origin_port = client_addr[1]
+            ip = client_addr[0]
+            ack_data = AckStruct.unpack(data)
+            port = ack_data.port
+            ack_data.port = origin_port
+            client_addr = (ip, port)
+            checksum = generate_checksum(struct.pack('ii', *(origin_port, ack_data.ack)))
+            ack_data.checksum = checksum
+            data = ack_data.pack()
         if client_addr in self.socket_buf:
             self.socket_buf[client_addr].put(data)
         else:
@@ -121,6 +131,8 @@ class ServerThread(threading.Thread):
                 data = self.recv()
             except TimeoutError:
                 raise Exception("timeout")
+            if len(data) != DATA_LEN:
+                continue
 
             recv_pack: DataStruct = DataStruct.unpack(data)
             isok: bool = check_checksum(struct.pack('iii?1024s', *(recv_pack.seq, recv_pack.ack, recv_pack.length, recv_pack.final_flag, recv_pack.data)), recv_pack.checksum)
@@ -189,7 +201,6 @@ class ServerThread(threading.Thread):
         checksum = generate_checksum(struct.pack('iii?1024s', *(-1, -1, -1, False, data)))
         send_pack = DataStruct(-1, -1, -1, False, data, checksum)
         self.send(send_pack.pack())
-        time.sleep(0.1)
         self.task = Task(self.file_name)
 
         for i in range(self.num_thread):

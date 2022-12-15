@@ -147,6 +147,9 @@ class Client():
         timer = threading.Timer(2 * ESTIMATED_RTT, self.timeout_handler)
         self.resend_buffer = [send_pack, timer]
         timer.start()
+        
+        if self.inst == 'upload':
+            return
 
         # recv Ready
         while True:
@@ -156,6 +159,8 @@ class Client():
             except Exception:
                 print('send cmd timeout! please try again')
                 raise TimeoutError
+            if len(data) != DATA_LEN:
+                continue
             recv_pack = DataStruct.unpack(data)
             isok: bool = check_checksum(struct.pack('iii?1024s', *(recv_pack.seq, recv_pack.ack, recv_pack.length, recv_pack.final_flag, recv_pack.data)), recv_pack.checksum)
             if isok is False:
@@ -199,7 +204,7 @@ class Client():
         upload_thread.join()
         self.task.finish()
         print(self.inst + ' ' + self.file_name + ' ' + 'successfully!')
-        time.sleep(2)
+        time.sleep(1)
         # send md5 to check
         md5 = get_md5(self.file_name)
         md5 = md5.encode('utf-8')
@@ -231,6 +236,8 @@ class Client():
                 data, addr = self.s.recvfrom(BUF_SIZE)
             except Exception:
                 raise TimeoutError
+            if len(data) != DATA_LEN:
+                continue
             recv_pack = DataStruct.unpack(data)
             isok: bool = check_checksum(struct.pack('iii?1024s', *(recv_pack.seq, recv_pack.ack, recv_pack.length, recv_pack.final_flag, recv_pack.data)), recv_pack.checksum)
             if isok is False:

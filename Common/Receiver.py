@@ -30,6 +30,7 @@ class Receiver(threading.Thread):
         self.socket_buf = socket_buf
         self.send_addr = send_addr
         self.resend_buffer = []
+        self.port = s.getsockname()[1]
 
     def run(self):
         self.send_ready()
@@ -39,9 +40,8 @@ class Receiver(threading.Thread):
             self.resend_buffer[1].cancel()
     
     def send_ready(self):
-        data = 'Ready'.encode('utf-8')
-        checksum = generate_checksum(struct.pack('iii?1024s', *(-1, -1, -1, False, data)))
-        send_pack = DataStruct(-1, -1, -1, False, data, checksum)
+        checksum = generate_checksum(struct.pack('ii', *(self.port, -1)))
+        send_pack = AckStruct(self.port, -1, checksum)
         self.send(send_pack.pack())
         timer = threading.Timer(2 * ESTIMATED_RTT, self.timeout_handler)
         self.resend_buffer = [send_pack, timer]
@@ -85,6 +85,8 @@ class Receiver(threading.Thread):
                     return
 
             # check
+            if len(data) != DATA_LEN:
+                continue
             recv_pack: DataStruct = DataStruct.unpack(data)
             isok: bool = check_checksum(struct.pack('iii?1024s', *(recv_pack.seq, recv_pack.ack, recv_pack.length, recv_pack.final_flag, recv_pack.data)), recv_pack.checksum)
             if isok is False:
@@ -103,9 +105,8 @@ class Receiver(threading.Thread):
                     end_seq = recv_pack.seq
             if idx < self.rwnd:
                 # send ack 
-                data = ''.encode('utf-8')
-                checksum = generate_checksum(struct.pack('iii?1024s', *(0, recv_pack.seq, self.rwnd, False, data)))
-                send_pack = DataStruct(0, recv_pack.seq, self.rwnd, False, data, checksum)
+                checksum = generate_checksum(struct.pack('ii', *(self.port, recv_pack.seq)))
+                send_pack = AckStruct(self.port, recv_pack.seq, checksum)
                 self.send(send_pack.pack())
 
             # window slides
